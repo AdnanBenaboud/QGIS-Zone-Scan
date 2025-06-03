@@ -23,13 +23,19 @@
 """
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction
+from qgis.PyQt.QtWidgets import QAction, QTableWidgetItem, QMessageBox
+from qgis.core import QgsMapLayerProxyModel, QgsProject, QgsVectorLayer
+
+
 
 # Initialize Qt resources from file resources.py
 from .resources import *
 # Import the code for the dialog
 from .zone_scan_dialog import ZonescanDialog
 import os.path
+
+
+from qgis.gui import QgsMapToolEmitPoint
 
 
 class Zonescan:
@@ -45,9 +51,11 @@ class Zonescan:
         """
         # Save reference to the QGIS interface
         self.iface = iface
+        self.canvas = self.iface.mapCanvas()
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
         # initialize locale
+        self.addPoint = QgsMapToolEmitPoint(self.canvas)
         locale = QSettings().value('locale/userLocale')[0:2]
         locale_path = os.path.join(
             self.plugin_dir,
@@ -169,6 +177,7 @@ class Zonescan:
 
         # will be set False in run()
         self.first_start = True
+        
 
 
     def unload(self):
@@ -188,6 +197,15 @@ class Zonescan:
         if self.first_start == True:
             self.first_start = False
             self.dlg = ZonescanDialog()
+            self.dlg.btnSelect.clicked.connect(self.clickingSelect)
+            self.dlg.mMapLayerComboBox.setFilters(QgsMapLayerProxyModel.PolygonLayer)
+            
+
+        self.dlg.btnAddAllLayers.clicked.connect(self.addAllLayers)
+        self.dlg.btnDelete.clicked.connect(self.On_Delete_Click)
+        self.dlg.btnAddLayer.clicked.connect(self.addSepartly)
+
+
 
         # show the dialog
         self.dlg.show()
@@ -198,3 +216,73 @@ class Zonescan:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
             pass
+
+    
+    def evaluatePoint(self,point,button):
+        self.dlg.spnboxLat.setValue(point.y())
+        self.dlg.spnboxLon.setValue(point.x())
+        self.dlg.show()
+
+        self.addPoint.canvasClicked.disconnect(self.evaluatePoint)
+        self.iface.mapCanvas().unsetMapTool(self.addPoint)
+
+    def clickingSelect(self):
+        self.dlg.hide()
+        self.canvas.setMapTool(self.addPoint)
+        try:
+            self.addPoint.canvasClicked.disconnect()
+        except:
+            pass
+        self.addPoint.canvasClicked.connect(self.evaluatePoint)
+
+    def addAllLayers(self):
+        layers = QgsProject.instance().mapLayers().values()
+    
+        for layer in layers:
+            if isinstance(layer, QgsVectorLayer):
+                row = self.dlg.tblLayers.rowCount()
+                self.dlg.tblLayers.insertRow(row)
+                self.dlg.tblLayers.setItem(row,0,QTableWidgetItem(layer.name()))
+
+    def addSepartly(self):
+        layer = self.dlg.mMapLayerComboBox.currentLayer()
+        row = self.dlg.tblLayers.rowCount()
+        self.dlg.tblLayers.insertRow(row)
+        self.dlg.tblLayers.setItem(row,0,QTableWidgetItem(layer.name()))
+
+        
+
+
+    def On_Delete_Click(self):
+        SelectedRow = self.dlg.tblLayers.currentRow()
+        rowcount = self.dlg.tblLayers.rowCount()
+
+        if rowcount==0:  # gives a pop up when now more rows are there to delete
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText("NOTE:")
+            msg.setInformativeText("\n No more rows to delete! \t\t")
+            msg.setWindowTitle("WARNING!")
+            # msg.setDetailedText("The details are as follows:")
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.buttonClicked.connect(self.msgbtn)
+            retval = msg.exec_()
+
+
+
+        elif SelectedRow==-1: # Gives pop up when no rows are selected
+
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText("NOTE:")
+            msg.setInformativeText("\n Please select the row to be deleted! \t\t")
+            msg.setWindowTitle("WARNING!")
+            # msg.setDetailedText("The details are as follows:")
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.buttonClicked.connect(self.msgbtn)
+            retval = msg.exec_()
+
+
+        else:
+            self.dlg.tblLayers.removeRow(SelectedRow)
+        

@@ -43,4 +43,6 @@ class ZonescanDialog(QtWidgets.QDialog, FORM_CLASS):
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
         self.tblLayers.setColumnWidth(0,211)
+        self.tblResultlayers.setColumnWidth(0,100)
+        self.tblResultlayers.setColumnWidth(1,180)
 

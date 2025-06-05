@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>574</width>
+    <width>650</width>
     <height>413</height>
    </rect>
   </property>
@@ -100,7 +100,7 @@
   <widget class="QDoubleSpinBox" name="spnboxBuffer">
    <property name="geometry">
     <rect>
-     <x>100</x>
+     <x>90</x>
      <y>50</y>
      <width>121</width>
      <height>22</height>
@@ -154,7 +154,7 @@
     <string>Add</string>
    </property>
   </widget>
-  <widget class="QPushButton" name="pushButton_3">
+  <widget class="QPushButton" name="btnAnalyze">
    <property name="geometry">
     <rect>
      <x>20</x>
@@ -172,18 +172,13 @@
     <rect>
      <x>245</x>
      <y>130</y>
-     <width>301</width>
+     <width>391</width>
      <height>192</height>
     </rect>
    </property>
    <column>
     <property name="text">
      <string>ID</string>
-    </property>
-   </column>
-   <column>
-    <property name="text">
-     <string>Name</string>
     </property>
    </column>
    <column>
@@ -200,7 +195,7 @@
   <widget class="QPushButton" name="btnGenereatePdf">
    <property name="geometry">
     <rect>
-     <x>470</x>
+     <x>550</x>
      <y>330</y>
      <width>81</width>
      <height>23</height>
@@ -226,7 +221,7 @@
   <widget class="QPushButton" name="btnCancel">
    <property name="geometry">
     <rect>
-     <x>490</x>
+     <x>560</x>
      <y>380</y>
      <width>75</width>
      <height>23</height>
@@ -259,12 +254,76 @@
     <string>delete</string>
    </property>
   </widget>
+  <widget class="QgsFileWidget" name="pdfFileWidget">
+   <property name="geometry">
+    <rect>
+     <x>250</x>
+     <y>330</y>
+     <width>291</width>
+     <height>27</height>
+    </rect>
+   </property>
+   <property name="storageMode">
+    <enum>QgsFileWidget::SaveFile</enum>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_5">
+   <property name="geometry">
+    <rect>
+     <x>220</x>
+     <y>50</y>
+     <width>101</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Buffer Layer Name</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="bufferNameLayer">
+   <property name="geometry">
+    <rect>
+     <x>320</x>
+     <y>50</y>
+     <width>113</width>
+     <height>20</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_6">
+   <property name="geometry">
+    <rect>
+     <x>220</x>
+     <y>80</y>
+     <width>101</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Poin Layer Name</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="pointNameLayer">
+   <property name="geometry">
+    <rect>
+     <x>320</x>
+     <y>80</y>
+     <width>113</width>
+     <height>20</height>
+    </rect>
+   </property>
+  </widget>
  </widget>
  <customwidgets>
   <customwidget>
    <class>QgsDoubleSpinBox</class>
    <extends>QDoubleSpinBox</extends>
    <header>qgsdoublespinbox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QgsFileWidget</class>
+   <extends>QWidget</extends>
+   <header>qgsfilewidget.h</header>
   </customwidget>
   <customwidget>
    <class>QgsMapLayerComboBox</class>

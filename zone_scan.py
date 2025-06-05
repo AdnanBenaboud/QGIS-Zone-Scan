@@ -22,9 +22,9 @@
  ***************************************************************************/
 """
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
-from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtGui import QIcon, QColor
 from qgis.PyQt.QtWidgets import QAction, QTableWidgetItem, QMessageBox
-from qgis.core import QgsMapLayerProxyModel, QgsProject, QgsVectorLayer
+from qgis.core import QgsMapLayerProxyModel, QgsProject, QgsVectorLayer, QgsGeometry, QgsPointXY, QgsFeature, QgsDistanceArea
 
 
 
@@ -199,14 +199,20 @@ class Zonescan:
             self.dlg = ZonescanDialog()
             self.dlg.btnSelect.clicked.connect(self.clickingSelect)
             self.dlg.mMapLayerComboBox.setFilters(QgsMapLayerProxyModel.PolygonLayer)
+            self.dlg.btnCancel.clicked.connect(self.cancel)
+            self.dlg.btnAddAllLayers.clicked.connect(self.addAllLayers)
+            self.dlg.btnAddLayer.clicked.connect(self.addSepartly)
+
             
 
-        self.dlg.btnAddAllLayers.clicked.connect(self.addAllLayers)
+        
         self.dlg.btnDelete.clicked.connect(self.On_Delete_Click)
-        self.dlg.btnAddLayer.clicked.connect(self.addSepartly)
+        
+
+        self.dlg.btnAnalyze.clicked.connect(self.analyze)
 
 
-
+        self.reset_ui()
         # show the dialog
         self.dlg.show()
         # Run the dialog event loop
@@ -217,7 +223,23 @@ class Zonescan:
             # substitute with your code.
             pass
 
-    
+    def reset_ui(self):
+        self.dlg.spnboxLat.setValue(0.0)
+        self.dlg.spnboxLon.setValue(0.0)
+        self.dlg.spnboxBuffer.setValue(0.0)
+
+        self.dlg.tblLayers.setRowCount(0)
+
+        self.dlg.tblResultlayers.setRowCount(0)
+
+        self.dlg.bufferNameLayer.setText("Buffer Layer")
+        self.dlg.pointNameLayer.setText("Point Layer")
+
+    def cancel(self):
+        self.reset_ui()
+        self.dlg.close()
+
+  
     def evaluatePoint(self,point,button):
         self.dlg.spnboxLat.setValue(point.y())
         self.dlg.spnboxLon.setValue(point.x())
@@ -258,31 +280,100 @@ class Zonescan:
         rowcount = self.dlg.tblLayers.rowCount()
 
         if rowcount==0:  # gives a pop up when now more rows are there to delete
-            msg = QMessageBox(self)
-            msg.setIcon(QMessageBox.Warning)
-            msg.setText("NOTE:")
-            msg.setInformativeText("\n No more rows to delete! \t\t")
-            msg.setWindowTitle("WARNING!")
-            # msg.setDetailedText("The details are as follows:")
-            msg.setStandardButtons(QMessageBox.Ok)
-            msg.buttonClicked.connect(self.msgbtn)
-            retval = msg.exec_()
+            QMessageBox.information(self.dlg,'Delete Layer',"No more rows to delete!")
 
 
 
         elif SelectedRow==-1: # Gives pop up when no rows are selected
-
-            msg = QMessageBox(self)
-            msg.setIcon(QMessageBox.Warning)
-            msg.setText("NOTE:")
-            msg.setInformativeText("\n Please select the row to be deleted! \t\t")
-            msg.setWindowTitle("WARNING!")
-            # msg.setDetailedText("The details are as follows:")
-            msg.setStandardButtons(QMessageBox.Ok)
-            msg.buttonClicked.connect(self.msgbtn)
-            retval = msg.exec_()
+            QMessageBox.information(self.dlg,'Delete Layer',"Please select the row to be deleted!")
 
 
         else:
             self.dlg.tblLayers.removeRow(SelectedRow)
+
+    def analyze(self):
+        all_layers = QgsProject().instance().mapLayers().values()
+        layers_in_name = []
+        layers_in = []
+        row = self.dlg.tblLayers.rowCount()
+        for i in range(row):
+            item = self.dlg.tblLayers.item(i, 0)
+            if item is not None:
+                layers_in_name.append(item.text())
+
+        for i in all_layers:
+            if i.name() in layers_in_name:
+                layers_in.append(i)
+
+
+        project_crs = QgsProject().instance().crs().authid()
+        uri = "polygon?crs="+str(project_crs).lower()+"&field=id:integer"
+        uri_point = "point?crs="+str(project_crs).lower()+"&field=id:integer"
+        BufferLayer = QgsVectorLayer(uri, self.dlg.bufferNameLayer.text(),  "memory")
+        LocalisationLayer = QgsVectorLayer(uri_point, self.dlg.pointNameLayer.text(),  "memory")
+
+
+        if not BufferLayer.isValid():
+            print("Buffer layer creation failed!")
+            return
+        if not LocalisationLayer.isValid():
+            print("Point layer creation failed!")
+            return
+        
+
+        valLat = self.dlg.spnboxLat.value()
+        valLon = self.dlg.spnboxLon.value()
+        valBuffer = self.dlg.spnboxBuffer.value()
+
+        point = QgsPointXY(valLon, valLat)
+        geom = QgsGeometry.fromPointXY(point)
+
+        buffer = geom.buffer(valBuffer,20)
+
+        ftrPoint = QgsFeature(LocalisationLayer.fields())
+        ftrPoint.setAttribute("id",1)
+        ftrPoint.setGeometry(geom)
+
+        ftrBuffer = QgsFeature(BufferLayer.fields())
+        ftrBuffer.setAttribute("id",1)
+        ftrBuffer.setGeometry(buffer)
+
+        pr = LocalisationLayer.dataProvider()
+        pr.addFeatures([ftrPoint])
+
+        pr = BufferLayer.dataProvider()
+        pr.addFeatures([ftrBuffer])
+        symbol_layer = BufferLayer.renderer().symbol().symbolLayer(0)
+        symbol_layer.setFillColor(QColor(0, 0, 0, 0))  # fully transparent fill
+        symbol_layer.setStrokeColor(QColor("red"))
+        symbol_layer.setStrokeWidth(1.0)
+        BufferLayer.triggerRepaint()
+        BufferLayer.reload()
+
+        bb = buffer.boundingBox()
+
+        for layer in layers_in:
+            layer_in_bb = layer.getFeatures(bb)
+            for feature in layer_in_bb:
+                OBJECTID = feature.attribute("OBJECTID")
+                Distance = feature.geometry().distance(geom)
+                disarea = QgsDistanceArea()
+                total_area = disarea.measureArea(feature.geometry())
+                intersection = feature.geometry().intersection(buffer)
+                intersection_area = disarea.measureArea(intersection)
+                percentage = (intersection_area/total_area)*100
+                if Distance < valBuffer:
+                    row = self.dlg.tblResultlayers.rowCount()
+                    self.dlg.tblResultlayers.insertRow(row)
+                    self.dlg.tblResultlayers.setItem(row,0,QTableWidgetItem(str(OBJECTID)))
+                    self.dlg.tblResultlayers.setItem(row,1,QTableWidgetItem(layer.name()))
+                    self.dlg.tblResultlayers.setItem(row,2,QTableWidgetItem(str("{:2.5f}".format(percentage))))
+        QgsProject.instance().addMapLayer(BufferLayer)
+        QgsProject.instance().addMapLayer(LocalisationLayer)
+
+
+        
+
+        
+
         

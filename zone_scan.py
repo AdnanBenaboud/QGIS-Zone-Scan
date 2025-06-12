@@ -22,10 +22,10 @@
  ***************************************************************************/
 """
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
-from qgis.PyQt.QtGui import QIcon, QColor
+from qgis.PyQt.QtGui import QIcon, QColor, QFont, QPixmap
 from qgis.PyQt.QtWidgets import QAction, QTableWidgetItem, QMessageBox
-from qgis.core import QgsMapLayerProxyModel, QgsProject, QgsVectorLayer, QgsGeometry, QgsPointXY, QgsFeature, QgsDistanceArea
-
+from qgis.core import QgsMapLayerProxyModel, QgsProject, QgsVectorLayer, QgsGeometry, QgsPointXY, QgsFeature, QgsDistanceArea, QgsLayout, QgsLayoutItemMap, QgsLayoutItemLabel,QgsLayoutPoint, QgsLayoutSize, QgsUnitTypes, QgsLayoutExporter, QgsLayoutItemPicture, QgsPrintLayout
+import tempfile
 
 
 # Initialize Qt resources from file resources.py
@@ -199,19 +199,16 @@ class Zonescan:
             self.dlg = ZonescanDialog()
             self.dlg.btnSelect.clicked.connect(self.clickingSelect)
             self.dlg.mMapLayerComboBox.setFilters(QgsMapLayerProxyModel.PolygonLayer)
+            self.dlg.pdfFileWidget.setFilter("PDF (*.pdf)")
             self.dlg.btnCancel.clicked.connect(self.cancel)
             self.dlg.btnAddAllLayers.clicked.connect(self.addAllLayers)
             self.dlg.btnAddLayer.clicked.connect(self.addSepartly)
+            self.dlg.btnDelete.clicked.connect(self.On_Delete_Click)
+            self.dlg.btnAnalyze.clicked.connect(self.analyze)
+            self.dlg.btnGenereatePdf.clicked.connect(self.exportToPDF)
 
-            
 
         
-        self.dlg.btnDelete.clicked.connect(self.On_Delete_Click)
-        
-
-        self.dlg.btnAnalyze.clicked.connect(self.analyze)
-
-
         self.reset_ui()
         # show the dialog
         self.dlg.show()
@@ -370,6 +367,61 @@ class Zonescan:
                     self.dlg.tblResultlayers.setItem(row,2,QTableWidgetItem(str("{:2.5f}".format(percentage))))
         QgsProject.instance().addMapLayer(BufferLayer)
         QgsProject.instance().addMapLayer(LocalisationLayer)
+
+
+
+    def exportToPDF(self):
+        project = QgsProject.instance()
+        layout = QgsLayout(project)
+        layout.initializeDefaults()
+        layout = QgsPrintLayout(project)
+        layout.initializeDefaults()
+        layout.setName("ZoneScanLayout")
+
+        layout_manager = project.layoutManager()
+        layout_manager.addLayout(layout)
+
+        # Map Item
+        map_item = QgsLayoutItemMap(layout)
+        map_item.setExtent(self.iface.mapCanvas().extent())
+        map_item.setRect(20, 20, 200, 100)
+        map_item.attemptMove(QgsLayoutPoint(10, 10, QgsUnitTypes.LayoutMillimeters))
+        map_item.attemptResize(QgsLayoutSize(180, 90, QgsUnitTypes.LayoutMillimeters))
+        layout.addLayoutItem(map_item)
+
+        # Title
+        title = QgsLayoutItemLabel(layout)
+        title.setText("Zone Scan Report")
+        title.setFont(QFont("Arial", 18))
+        title.adjustSizeToText()
+        title.attemptMove(QgsLayoutPoint(10, 5, QgsUnitTypes.LayoutMillimeters))
+        layout.addLayoutItem(title)
+
+        # ---- Render QTableWidget to image ----
+        result_table = self.dlg.tblResultlayers
+        table_pixmap = QPixmap(result_table.size())
+        result_table.render(table_pixmap)
+
+        temp_dir = tempfile.gettempdir()
+        table_image_path = os.path.join(temp_dir, "result_table.png")
+        table_pixmap.save(table_image_path)
+
+        # Add Picture of table
+        table_pic = QgsLayoutItemPicture(layout)
+        table_pic.setPicturePath(table_image_path)
+        table_pic.attemptMove(QgsLayoutPoint(10, 105, QgsUnitTypes.LayoutMillimeters))
+        table_pic.attemptResize(QgsLayoutSize(180, 60, QgsUnitTypes.LayoutMillimeters))
+        layout.addLayoutItem(table_pic)
+
+        # Export
+        output_path = self.dlg.pdfFileWidget.filePath()
+        if output_path:
+            exporter = QgsLayoutExporter(layout)
+            result = exporter.exportToPdf(output_path, QgsLayoutExporter.PdfExportSettings())
+            if result == QgsLayoutExporter.Success:
+                QMessageBox.information(self.dlg, "Export Successful", "PDF exported successfully!")
+            else:
+                QMessageBox.warning(self.dlg, "Export Failed", "Failed to export PDF.")
 
 
         

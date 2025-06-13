@@ -37,6 +37,30 @@ import os.path
 
 from qgis.gui import QgsMapToolEmitPoint
 
+ ################ AYMANE ####################
+
+from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtWidgets import QAction
+import datetime
+# Initialize Qt resources from file resources.py
+from .resources import *
+# Import the code for the dialog
+import os.path
+from .lib.toMakeRequest import SentinelDownloader, get_time_ranges
+from .lib.createJobs import create_windows_task, write_download_script
+from qgis import processing
+from qgis.PyQt.QtWidgets import *
+
+from qgis.core import *
+from qgis.analysis import (
+    QgsRasterCalculator,
+    QgsRasterCalculatorEntry,
+)
+
+from qgis.core import QgsProject, QgsVectorLayer, QgsMapLayer, QgsRasterLayer
+
+ ############################################
 
 class Zonescan:
     """QGIS Plugin Implementation."""
@@ -206,6 +230,21 @@ class Zonescan:
             self.dlg.btnDelete.clicked.connect(self.On_Delete_Click)
             self.dlg.btnAnalyze.clicked.connect(self.analyze)
             self.dlg.btnGenereatePdf.clicked.connect(self.exportToPDF)
+
+
+            ################ AYMANE #####################
+            self.load_indexes()
+            self.dlg.run_image_sat.clicked.connect(self.run_downloads_and_schedule)
+
+            self.dlg.cloud_coverage.valueChanged.connect(
+            lambda v: self.dlg.label_value.setText(f"{v}%"))
+            self.dlg.label_value.setText(f"{self.dlg.cloud_coverage.value()}%")
+            self.dlg.checkbox_schedule.stateChanged.connect(self.enable_schedule_options)
+
+            # self.dlg.progress_image_sat.setEnabled(False)
+            # self.dlg.progress_image_sat.setRange(0, 0)
+        self.dlg.progress_image_sat.setValue(0)
+            ############################################
 
 
         
@@ -424,8 +463,280 @@ class Zonescan:
                 QMessageBox.warning(self.dlg, "Export Failed", "Failed to export PDF.")
 
 
-        
+    ################ AYMANE #####################
+    def load_indexes(self):
+        self.index_checkboxes = {}
 
-        
+        self.INDEXES = {
+                    # Vegetation Indices
+    "NDVI": {
+        "formula": "(NIR - Red) / (NIR + Red)",
+        "bands": {"NIR": 8, "Red": 4},  # Sentinel-2 bands (adjust for your sensor)
+        "output_filename": "ndvi.tiff",
+        "description": "Normalized Difference Vegetation Index (healthy vegetation detection)"
+    },
+    "EVI": {
+        "formula": "2.5 * (NIR - Red) / (NIR + 6 * Red - 7.5 * Blue + 1)",
+        "bands": {"NIR": 8, "Red": 4, "Blue": 2},
+        "output_filename": "evi.tiff",
+        "description": "Enhanced Vegetation Index (improves sensitivity in high biomass regions)"
+    },
+    "SAVI": {
+        "formula": "(1 + 0.5) * (NIR - Red) / (NIR + Red + 0.5)",
+        "bands": {"NIR": 8, "Red": 4},
+        "output_filename": "savi.tiff",
+        "description": "Soil-Adjusted Vegetation Index (accounts for soil brightness)",
+    },
+    "NDWI": {
+        "formula": "(Green - NIR) / (Green + NIR)",
+        "bands": {"Green": 3, "NIR": 8},
+        "output_filename": "ndwi.tiff",
+        "description": "Normalized Difference Water Index (water body detection)"
+     },
+    "MNDWI": {
+        "formula": "(Green - SWIR1) / (Green + SWIR1)",
+        "bands": {"Green": 3, "SWIR1": 11},
+        "output_filename": "mndwi.tiff",
+        "description": "Modified NDWI (better water detection, reduces built-up noise)"
+    },
+    # Urban & Built-up Indices
+    "NDBI": {
+        "formula": "(SWIR1 - NIR) / (SWIR1 + NIR)",
+        "bands": {"SWIR1": 11, "NIR": 8},
+        "output_filename": "ndbi.tiff",
+        "description": "Normalized Difference Built-up Index (urban area detection)"
+    },
+    "UI": {
+        "formula": "(SWIR2 - NIR) / (SWIR2 + NIR)",
+        "bands": {"SWIR2": 12, "NIR": 8},
+        "output_filename": "ui.tiff",
+        "description": "Urban Index (alternative to NDBI)"
+    },
+    # Soil & Burn Indices
+    "NDSI": {
+        "formula": "(Green - SWIR1) / (Green + SWIR1)",
+        "bands": {"Green": 3, "SWIR1": 11},
+        "output_filename": "ndsi.tiff",
+        "description": "Normalized Difference Snow Index (snow/ice detection)"
+    },
+    "NBR": {
+        "formula": "(NIR - SWIR2) / (NIR + SWIR2)",
+        "bands": {"NIR": 8, "SWIR2": 12},
+        "output_filename": "nbr.tiff",
+        "description": "Normalized Burn Ratio (burn severity mapping)"
+    },
+    }
+        for index_name, index_data in self.INDEXES.items():
+            cb = QCheckBox(index_name)
+            label = QLabel(index_data["description"])
+            h_layout = QHBoxLayout()
+            h_layout.addWidget(cb)
+            h_layout.addWidget(label)
+            self.dlg.index_layout.addLayout(h_layout)
+            self.index_checkboxes[index_name] = cb
 
+
+    def run_downloads_and_schedule(self):
+
+        # self.dlg.progress_image_sat.setEnabled(True)
+        # self.dlg.progress_image_sat.setRange(0, 100)
+        self.dlg.progress_image_sat.setValue(0)
+
+        client_id = self.dlg.id.text()
+        client_secret = self.dlg.secret.text()
+        folder_path = self.dlg.localsave.filePath()
+        cloud_cov = self.dlg.cloud_coverage.value()
+
+        if folder_path == "":
+            folder_path = None
+            QMessageBox.warning(self.dlg, "No Index Selected", "Please select a folder path.")
+            return
+
+        time_start = self.dlg.start_date.dateTime().toString(Qt.ISODate)+"Z"
+        time_end = self.dlg.end_date.dateTime().toString(Qt.ISODate)+"Z"
+        # start_dt = self.dlg.start_date.dateTime().toPyDateTime()
+        # end_dt = self.dlg.end_date.dateTime().toPyDateTime()
+
+        selected_indexes = [k for k, cb in self.index_checkboxes.items() if cb.isChecked()]
+        self.dlg.progress_image_sat.setValue(10)
+        if len(selected_indexes) != 0:
+
+            print(client_id, client_secret, cloud_cov)
+            downloader = SentinelDownloader(client_id, client_secret)
+            downloader.base_dir = folder_path
+            print("Base dir: ",downloader.base_dir)
+
+            print("Raw")
+            downloader.get_raw(
+                filename="raw.tiff",
+                time_start=time_start,
+                time_end=time_end,
+                cloud_coverage=cloud_cov,
+                size=(512, 512)
+            )
+            raw = os.path.join(folder_path, "raw.tiff")
+        
+            layer_name = "raw"
+            print("Loading raw from {}".format(raw))
+            raw_layer = QgsRasterLayer(raw, layer_name)
+            if not raw_layer.isValid():
+                raise Exception("Failed to load raster")
+
+            if not raw_layer.crs().isValid():
+                print("CRS NOT VALID!")
+                raw_layer.setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
+
+            QgsProject.instance().addMapLayer(raw_layer, addToLegend=True)
+
+            provider = raw_layer.dataProvider()
+            band_count = provider.bandCount()
+
+            for key in selected_indexes:
+                cfg = self.INDEXES[key]
+
+                entries = []
+                for letter, bandnum in cfg["bands"].items():
+                    if bandnum < 1 or bandnum > band_count:
+                        raise Exception(f"Invalid band number {bandnum} for {letter}")
+
+                    entry = QgsRasterCalculatorEntry()
+                    entry.ref = f"{layer_name}@{letter}"
+                    entry.raster = raw_layer
+                    entry.bandNumber = bandnum
+                    entries.append(entry)
+
+                expr = cfg["formula"]
+                for letter in cfg["bands"].keys():
+                    expr = expr.replace(letter, f'"{layer_name}@{letter}"')
+
+                out_path = os.path.join(folder_path, cfg["output_filename"])
+                self.dlg.progress_image_sat.setValue(20)
+                print("Creating QgsRasterCalculator with:")
+                print(f"  Expression: {expr}")
+                print(f"  Output: {out_path}")
+                print(f"  Extent: {raw_layer.extent()}")
+                print(f"  Size: {raw_layer.width()} x {raw_layer.height()}")
+                print(f"  Entries: {[e.ref for e in entries]}")
+
+                calc = QgsRasterCalculator(
+                    expr,
+                    out_path,
+                    "GTiff",
+                    raw_layer.extent(),
+                    raw_layer.width(),
+                    raw_layer.height(),
+                    entries,
+                    QgsProject.instance().transformContext()
+                )
+                res = calc.processCalculation()
+                print(calc.lastError())
+                # self.iface.addRasterLayer(out_path)
+                if res != 0:
+                    raise Exception(f"{key} calculation failed (code {res})")
+            
+                QgsProject.instance().addMapLayer(QgsRasterLayer(out_path, key), addToLegend=True)
+
+                self.dlg.progress_image_sat.setValue(30)
+            
+            print("Done with index calculations...")            
+
+        if self.dlg.checkbox_schedule.isChecked():
+
+
+            print("Schedule options enabled")
+            self.dlg.progress_image_sat.setValue(60)
+
+            frequency_unit = self.dlg.frequency_combo.currentText().lower()
+
+            try:
+                frequency_value = int(self.dlg.value.text())
+            except:
+                print("Error in the value, defaulting to 1..")
+                frequency_value = 1
+
+            options = []
+            if self.dlg.rgb_checkbox.isChecked():
+                options.append("rgb")
+            if self.dlg.raw_checkbox.isChecked():
+                options.append("raw")
+            if self.dlg.ndvi_checkbox.isChecked():
+                options.append("ndvi")
+
+            print("Time start: ", time_start)
+            print("Time end: ", time_end)
+            print("Frequency unit: ", frequency_unit)
+            print("Frequency value: ", frequency_value)
+
+            # time_ranges = get_time_ranges(start_dt, end_dt, frequency_unit, frequency_value)
+
+            # for from_time, to_time in time_ranges:
+            #     print(f"Requesting from {from_time} to {to_time}")
+
+            job_id = time_start + "_" + time_end+ "_" + frequency_unit + "_" + str(frequency_value)+ "_" + str(cloud_cov)
+            job_id = job_id.replace(":", "_")
+            job_id = job_id.replace(" ", "_")
+            job_id = job_id.replace("-", "_")
+
+            self.dlg.progress_image_sat.setValue(80)
+
+            print("Job ID: ", job_id)
+            write_download_script(job_id, client_id, client_secret, cloud_cov, folder_path, options)
+            # C:\Users\dell\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\QGIS-Zone-Scan\zone_scan.py
+            create_windows_task(f"geotask_{job_id}", time_start, time_end, f"C:/Users/dell/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins/QGIS-Zone-Scan/jobs/download_job_{job_id}.vbs", frequency_unit, frequency_value)
+
+        else:
+            print(client_id, client_secret, cloud_cov)
+            downloader = SentinelDownloader(client_id, client_secret)
+            downloader.base_dir = folder_path
+            print("Base dir: ",downloader.base_dir)
+
+
+            self.dlg.progress_image_sat.setValue(50)
+
+
+
+            if self.dlg.rgb_checkbox.isChecked():
+                print("RGB")
+                downloader.get_rgb(
+                    filename="rgb.tiff",
+                    time_start=time_start,
+                    time_end=time_end,
+                    cloud_coverage=cloud_cov,
+                    size=(512, 512)
+                )
+
+            self.dlg.progress_image_sat.setValue(70)
+            if self.dlg.raw_checkbox.isChecked():
+                print("Raw")
+                downloader.get_raw(
+                    filename="raw.tiff",
+                    time_start=time_start,
+                    time_end=time_end,
+                    cloud_coverage=cloud_cov,
+                    size=(512, 512)
+                )
+
+
+            if self.dlg.ndvi_checkbox.isChecked():
+                print("NDVI")
+                downloader.get_ndvi(
+                    filename="ndvi.tiff",
+                    time_start=time_start,
+                    time_end=time_end,
+                    cloud_coverage=cloud_cov,
+                    size=(512, 512)
+                )
+                self.dlg.progress_image_sat.setValue(90)
+        self.dlg.progress_image_sat.setValue(100)
+
+    def enable_schedule_options(self):
+
+        print("enabling schedule options")
+        if self.dlg.checkbox_schedule.isChecked():
+            self.dlg.frequency_combo.setEnabled(True)
+            self.dlg.value.setEnabled(True)
+        else:
+            self.dlg.frequency_combo.setEnabled(False)
+            self.dlg.value.setEnabled(False)
+    ############################################
         

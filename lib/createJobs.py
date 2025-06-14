@@ -83,6 +83,7 @@ start_date = today.isoformat()
 start_date = start_date + "T00:00:00Z"
 end_date = (start_date.split("T")[0]) + "T23:55:28Z"
 
+print("Starting to download the new images... ")
 print(start_date)
 print(end_date)
 

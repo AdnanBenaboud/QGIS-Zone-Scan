@@ -704,6 +704,7 @@ class Zonescan:
                     cloud_coverage=cloud_cov,
                     size=(512, 512)
                 )
+                QgsProject.instance().addMapLayer(QgsRasterLayer(os.path.join(downloader.base_dir, "rgb.tiff"), "RGB_ONLY"), addToLegend=True)
 
             self.dlg.progress_image_sat.setValue(70)
             if self.dlg.raw_checkbox.isChecked():
@@ -715,6 +716,7 @@ class Zonescan:
                     cloud_coverage=cloud_cov,
                     size=(512, 512)
                 )
+                QgsProject.instance().addMapLayer(QgsRasterLayer(os.path.join(downloader.base_dir, "raw.tiff"), "RAW_ONLY"), addToLegend=True)
 
 
             if self.dlg.ndvi_checkbox.isChecked():
@@ -726,6 +728,7 @@ class Zonescan:
                     cloud_coverage=cloud_cov,
                     size=(512, 512)
                 )
+                QgsProject.instance().addMapLayer(QgsRasterLayer(os.path.join(downloader.base_dir, "ndvi.tiff"), "NDVI_ONLY"), addToLegend=True)
                 self.dlg.progress_image_sat.setValue(90)
         self.dlg.progress_image_sat.setValue(100)
 

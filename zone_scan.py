@@ -21,6 +21,8 @@
  *                                                                         *
  ***************************************************************************/
 """
+import subprocess
+import sys
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
 from qgis.PyQt.QtGui import QIcon, QColor, QFont, QPixmap,QImage, QPainter
 from qgis.PyQt.QtWidgets import QAction, QTableWidgetItem, QMessageBox
@@ -38,7 +40,7 @@ from qgis.gui import QgsMapToolEmitPoint
 
  ################ AYMANE ####################
 
-from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt
+from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QSettings
 from qgis.PyQt.QtGui import QIcon,QFont, QFontMetrics
 from qgis.PyQt.QtWidgets import QAction, QCheckBox
 import datetime
@@ -102,6 +104,7 @@ class Zonescan:
         self.plugin_dir = os.path.dirname(__file__)
         self.jobs_dir = os.path.join(self.plugin_dir, 'jobs')
         os.makedirs(self.jobs_dir, exist_ok=True)
+        self.settings = QSettings()
         #############################################
 
 
@@ -219,7 +222,22 @@ class Zonescan:
                 self.tr(u'&Zone Scan'),
                 action)
             self.iface.removeToolBarIcon(action)
+    
+    def download_dependencies(self):
+        print("Installing the modules we neeed: oauthlib and requests_oauthlib..")
+        bat = os.path.join(self.plugin_dir, "install_required_libraries.bat")
+        subprocess.call([bat], shell=True)
+        self.settings.setValue("Zonescan/deps_installed", True)
 
+        try:
+            from oauthlib.oauth2 import BackendApplicationClient
+            from requests_oauthlib import OAuth2Session
+        except Exception as e:
+            print("Error importing oauthlib and requests_oauthlib: ", e)
+            QMessageBox.warning(self.dlg, "Error", "Error importing oauthlib and requests_oauthlib: " + str(e))
+            exit(0)
+
+        print("Done..")
 
     def run(self):
         """Run method that performs all the real work"""
@@ -241,6 +259,12 @@ class Zonescan:
 
 
             ################ AYMANE #####################
+
+            # self.settings.setValue("Zonescan/deps_installed", False)
+            if not self.settings.value("Zonescan/deps_installed", False, type=bool):
+                self.download_dependencies()
+
+
             self.load_indexes()
             self.dlg.run_image_sat.clicked.connect(self.run_downloads_and_schedule)
 
@@ -577,20 +601,7 @@ class Zonescan:
         "bands": {"SWIR2": 12, "NIR": 8},
         "output_filename": "ui.tiff",
         "description": "Urban Index (alternative to NDBI)"
-    },
-    # Soil & Burn Indices
-    "NDSI": {
-        "formula": "(Green - SWIR1) / (Green + SWIR1)",
-        "bands": {"Green": 3, "SWIR1": 11},
-        "output_filename": "ndsi.tiff",
-        "description": "Normalized Difference Snow Index (snow/ice detection)"
-    },
-    "NBR": {
-        "formula": "(NIR - SWIR2) / (NIR + SWIR2)",
-        "bands": {"NIR": 8, "SWIR2": 12},
-        "output_filename": "nbr.tiff",
-        "description": "Normalized Burn Ratio (burn severity mapping)"
-    },
+    }
     }
         for index_name, index_data in self.INDEXES.items():
             cb = QCheckBox(index_name)
@@ -613,6 +624,14 @@ class Zonescan:
         folder_path = self.dlg.localsave.filePath()
         cloud_cov = self.dlg.cloud_coverage.value()
 
+        if client_id == "":
+            client_id = None
+            QMessageBox.warning(self.dlg, "No Client ID Selected", "Please enter a Client ID.")
+            return
+        if client_secret == "":
+            client_secret = None
+            QMessageBox.warning(self.dlg, "No Client Secret Selected", "Please enter a Client Secret.")
+            return
         if folder_path == "":
             folder_path = None
             QMessageBox.warning(self.dlg, "No Index Selected", "Please select a folder path.")

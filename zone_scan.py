@@ -25,7 +25,6 @@ from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
 from qgis.PyQt.QtGui import QIcon, QColor, QFont, QPixmap,QImage, QPainter
 from qgis.PyQt.QtWidgets import QAction, QTableWidgetItem, QMessageBox
 from qgis.core import QgsMapLayerProxyModel, QgsProject, QgsVectorLayer, QgsGeometry, QgsPointXY, QgsFeature, QgsDistanceArea, QgsLayoutItemPicture, QgsLayoutItemLabel,QgsLayoutPoint, QgsLayoutSize, QgsUnitTypes, QgsLayoutExporter, QgsPrintLayout,QgsCoordinateReferenceSystem, QgsRectangle, QgsLayoutItemPage
-import tempfile
 
 
 # Initialize Qt resources from file resources.py

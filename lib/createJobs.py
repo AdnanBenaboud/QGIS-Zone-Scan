@@ -1,7 +1,7 @@
 import subprocess
 import sys
 import datetime
-
+import os
 
 def parse_local_datetime(utc_string):
     dt = datetime.datetime.strptime(utc_string, "%Y-%m-%dT%H:%M:%SZ")
@@ -39,7 +39,7 @@ def get_schedule(unit, value):
 
     
 
-def create_windows_task(task_name, time_str,time_end, bat_path, unit, value):
+def create_windows_task(task_name, time_str,time_end, vbs_path, unit, value):
     unit = unit.lower()
 
 
@@ -55,7 +55,7 @@ def create_windows_task(task_name, time_str,time_end, bat_path, unit, value):
         "/SC", str(sc),
         "/MO", str(mo),
         "/TN", task_name,
-        "/TR", f'wscript.exe {bat_path}',
+        "/TR", f'wscript.exe {vbs_path}',
         "/ST", start_time_str,
         "/SD", start_date_str,
         "/ED", end_date_str,
@@ -69,7 +69,7 @@ def create_windows_task(task_name, time_str,time_end, bat_path, unit, value):
 
 
 
-def write_download_script(job_id, client_id, client_secret, cloud_cov, out_dir, options):
+def write_download_script(job_id, client_id, client_secret, cloud_cov, out_dir, options, jobs_dir=None):
     script = f"""import sys
 from toMakeRequest import SentinelDownloader
 import datetime
@@ -102,7 +102,8 @@ if 'ndvi' in options:
     downloader.get_ndvi(f"ndvi_{{name}}.tiff", start_date, end_date, {cloud_cov}, (512, 512))
 
 """
-    filename = f"C:/Users/dell/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins/QGIS-Zone-Scan/jobs/download_job_{job_id}.py"
+    # filename = f"C:/Users/dell/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins/QGIS-Zone-Scan/jobs/download_job_{job_id}.py"
+    filename = os.path.join(jobs_dir,f"download_job_{job_id}.py" )
     with open(filename, "w") as f:
         f.write(script)
 
@@ -124,17 +125,22 @@ REM Run Python job
 python "{filename}"
 
     """
-    filename_bat = f"C:/Users/dell/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins/QGIS-Zone-Scan/jobs/download_job_{job_id}.bat"
+    # filename_bat = f"C:/Users/dell/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins/QGIS-Zone-Scan/jobs/download_job_{job_id}.bat"
+    filename_bat = os.path.join(jobs_dir,f"download_job_{job_id}.bat" )
     with open(filename_bat, "w") as f:
         f.write(script_bat)
 
     # VBS script
     script_vbs = f"""Set WshShell = CreateObject("WScript.Shell")
-WshShell.Run "C:/Users/dell/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins/QGIS-Zone-Scan/jobs/download_job_{job_id}.bat", 1, True
+WshShell.Run "{filename_bat}", 1, True
     """
 
-    filename_vbs = f"C:/Users/dell/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins/QGIS-Zone-Scan/jobs/download_job_{job_id}.vbs"
+    # filename_vbs = f"C:/Users/dell/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins/QGIS-Zone-Scan/jobs/download_job_{job_id}.vbs"
+    filename_vbs = os.path.join(jobs_dir,f"download_job_{job_id}.vbs" )
+    print("Filename vbs: ", filename_vbs)
+    print("Filename bat: ", filename_bat)
+    print("Filename: ", filename)
     with open(filename_vbs, "w") as f:
         f.write(script_vbs)
 
-    return filename
+    return filename_vbs

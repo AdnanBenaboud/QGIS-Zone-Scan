@@ -98,6 +98,15 @@ class Zonescan:
         # Must be set in initGui() to survive plugin reloads
         self.first_start = None
 
+        ################ AYMANE #####################
+        self.plugin_dir = os.path.dirname(__file__)
+        self.jobs_dir = os.path.join(self.plugin_dir, 'jobs')
+        os.makedirs(self.jobs_dir, exist_ok=True)
+        #############################################
+
+
+        
+
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
         """Get the translation for a string using Qt translation API.
@@ -245,7 +254,8 @@ class Zonescan:
         self.dlg.progress_image_sat.setValue(0)
             ############################################
 
-
+        print("Current plugin dir: ", self.plugin_dir)
+        print("Current jobs dir: ", self.jobs_dir)
         
         self.reset_ui()
         # show the dialog
@@ -736,9 +746,10 @@ class Zonescan:
             self.dlg.progress_image_sat.setValue(80)
 
             print("Job ID: ", job_id)
-            write_download_script(job_id, client_id, client_secret, cloud_cov, folder_path, options)
+            vbs_path = write_download_script(job_id, client_id, client_secret, cloud_cov, folder_path, options, 
+                                  jobs_dir=self.jobs_dir)
             # C:\Users\dell\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\QGIS-Zone-Scan\zone_scan.py
-            create_windows_task(f"geotask_{job_id}", time_start, time_end, f"C:/Users/dell/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins/QGIS-Zone-Scan/jobs/download_job_{job_id}.vbs", frequency_unit, frequency_value)
+            create_windows_task(f"geotask_{job_id}", time_start, time_end, vbs_path, frequency_unit, frequency_value)
 
         else:
             print(client_id, client_secret, cloud_cov)

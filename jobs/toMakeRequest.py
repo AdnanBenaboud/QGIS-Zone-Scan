@@ -6,8 +6,8 @@ from dateutil.relativedelta import relativedelta
 
 
 # Your client credentials
-client_id = 'sh-fe6c2430-e6d5-4e1d-b929-856798c5d2ad'
-client_secret = 'ZeZVlTvJrEon65OnvPnaRGiFJ727V3Lu'
+# client_id = 'sh-fe6c2430-e6d5-4e1d-b929-856798c5d2ad'
+# client_secret = 'ZeZVlTvJrEon65OnvPnaRGiFJ727V3Lu'
 
 
 

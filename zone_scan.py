@@ -22,9 +22,9 @@
  ***************************************************************************/
 """
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
-from qgis.PyQt.QtGui import QIcon, QColor, QFont, QPixmap
+from qgis.PyQt.QtGui import QIcon, QColor, QFont, QPixmap,QImage, QPainter
 from qgis.PyQt.QtWidgets import QAction, QTableWidgetItem, QMessageBox
-from qgis.core import QgsMapLayerProxyModel, QgsProject, QgsVectorLayer, QgsGeometry, QgsPointXY, QgsFeature, QgsDistanceArea, QgsLayout, QgsLayoutItemMap, QgsLayoutItemLabel,QgsLayoutPoint, QgsLayoutSize, QgsUnitTypes, QgsLayoutExporter, QgsLayoutItemPicture, QgsPrintLayout
+from qgis.core import QgsMapLayerProxyModel, QgsProject, QgsVectorLayer, QgsGeometry, QgsPointXY, QgsFeature, QgsDistanceArea, QgsLayoutItemPicture, QgsLayoutItemLabel,QgsLayoutPoint, QgsLayoutSize, QgsUnitTypes, QgsLayoutExporter, QgsPrintLayout,QgsCoordinateReferenceSystem, QgsRectangle, QgsLayoutItemPage
 import tempfile
 
 
@@ -40,8 +40,8 @@ from qgis.gui import QgsMapToolEmitPoint
  ################ AYMANE ####################
 
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt
-from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction
+from qgis.PyQt.QtGui import QIcon,QFont, QFontMetrics
+from qgis.PyQt.QtWidgets import QAction, QCheckBox
 import datetime
 # Initialize Qt resources from file resources.py
 from .resources import *
@@ -411,46 +411,101 @@ class Zonescan:
 
     def exportToPDF(self):
         project = QgsProject.instance()
-        layout = QgsLayout(project)
-        layout.initializeDefaults()
+        layout_manager = project.layoutManager()
+
+        # Remove old layout if exists
+        existing_layout = layout_manager.layoutByName("ZoneScanLayout")
+        if existing_layout:
+            layout_manager.removeLayout(existing_layout)
+
+        # Create new layout
         layout = QgsPrintLayout(project)
         layout.initializeDefaults()
         layout.setName("ZoneScanLayout")
-
-        layout_manager = project.layoutManager()
+        layout.pageCollection().pages()[0].setPageSize('A4', QgsLayoutItemPage.Orientation.Portrait)
         layout_manager.addLayout(layout)
 
-        # Map Item
-        map_item = QgsLayoutItemMap(layout)
-        map_item.setExtent(self.iface.mapCanvas().extent())
-        map_item.setRect(20, 20, 200, 100)
-        map_item.attemptMove(QgsLayoutPoint(10, 10, QgsUnitTypes.LayoutMillimeters))
-        map_item.attemptResize(QgsLayoutSize(180, 90, QgsUnitTypes.LayoutMillimeters))
-        layout.addLayoutItem(map_item)
+        page_width = 210  # mm
+        margin = 10
+        dpi = 96
+        pixels_to_mm = 25.4 / dpi
+
+        def get_text_width_mm(text, font):
+            return QFontMetrics(font).horizontalAdvance(text) * pixels_to_mm
 
         # Title
+        title_text = "Zone Scan Report"
+        title_font = QFont("Arial", 18, QFont.Bold)
+        title_width = get_text_width_mm(title_text, title_font)
         title = QgsLayoutItemLabel(layout)
-        title.setText("Zone Scan Report")
-        title.setFont(QFont("Arial", 18))
-        title.adjustSizeToText()
-        title.attemptMove(QgsLayoutPoint(10, 5, QgsUnitTypes.LayoutMillimeters))
+        title.setText(title_text)
+        title.setFont(title_font)
         layout.addLayoutItem(title)
+        title.attemptMove(QgsLayoutPoint((page_width - title_width) / 2, margin, QgsUnitTypes.LayoutMillimeters))
 
-        # ---- Render QTableWidget to image ----
+        # --- Replace Map item with Canvas Screenshot as Image ---
+
+        canvas = self.iface.mapCanvas()
+        canvas_size = canvas.size()
+
+        # Capture canvas image
+        image = QImage(canvas_size, QImage.Format_ARGB32)
+        painter = QPainter(image)
+        canvas.render(painter)
+        painter.end()
+
+        # Save temporary image file
+        import tempfile
+        temp_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+        image_path = temp_file.name
+        image.save(image_path)
+        temp_file.close()
+
+        # Add image to layout as picture
+        picture = QgsLayoutItemPicture(layout)
+        picture.setPicturePath(image_path)
+
+        picture_width = 180
+        picture_height = 100
+        picture_x = (page_width - picture_width) / 2
+        picture_y = margin + 20
+
+        layout.addLayoutItem(picture)
+        picture.attemptMove(QgsLayoutPoint(picture_x, picture_y, QgsUnitTypes.LayoutMillimeters))
+        picture.attemptResize(QgsLayoutSize(picture_width, picture_height, QgsUnitTypes.LayoutMillimeters))
+
+        # Section Title
+        section_text = "Intersected Land Parcels"
+        section_font = QFont("Arial", 12, QFont.Bold)
+        section_width = get_text_width_mm(section_text, section_font)
+        section_title = QgsLayoutItemLabel(layout)
+        section_title.setText(section_text)
+        section_title.setFont(section_font)
+        layout.addLayoutItem(section_title)
+        section_y = picture_y + picture_height + 10
+        section_title.attemptMove(QgsLayoutPoint((page_width - section_width) / 2, section_y, QgsUnitTypes.LayoutMillimeters))
+
+        # Table Rows
         result_table = self.dlg.tblResultlayers
-        table_pixmap = QPixmap(result_table.size())
-        result_table.render(table_pixmap)
+        row_count = result_table.rowCount()
+        column_count = result_table.columnCount()
+        row_font = QFont("Arial", 10)
+        start_y = section_y + 10
+        line_height = 7
 
-        temp_dir = tempfile.gettempdir()
-        table_image_path = os.path.join(temp_dir, "result_table.png")
-        table_pixmap.save(table_image_path)
+        for row in range(row_count):
+            row_text = []
+            for col in range(column_count):
+                item = result_table.item(row, col)
+                row_text.append(item.text() if item else "")
+            text_line = " | ".join(row_text)
 
-        # Add Picture of table
-        table_pic = QgsLayoutItemPicture(layout)
-        table_pic.setPicturePath(table_image_path)
-        table_pic.attemptMove(QgsLayoutPoint(10, 105, QgsUnitTypes.LayoutMillimeters))
-        table_pic.attemptResize(QgsLayoutSize(180, 60, QgsUnitTypes.LayoutMillimeters))
-        layout.addLayoutItem(table_pic)
+            label = QgsLayoutItemLabel(layout)
+            label.setText(text_line)
+            label.setFont(row_font)
+            layout.addLayoutItem(label)
+            label_width = get_text_width_mm(text_line, row_font)
+            label.attemptMove(QgsLayoutPoint((page_width - label_width) / 2, start_y + row * line_height, QgsUnitTypes.LayoutMillimeters))
 
         # Export
         output_path = self.dlg.pdfFileWidget.filePath()
@@ -461,6 +516,8 @@ class Zonescan:
                 QMessageBox.information(self.dlg, "Export Successful", "PDF exported successfully!")
             else:
                 QMessageBox.warning(self.dlg, "Export Failed", "Failed to export PDF.")
+
+
 
 
     ################ AYMANE #####################

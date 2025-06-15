@@ -48,7 +48,6 @@ import datetime
 from .resources import *
 # Import the code for the dialog
 import os.path
-from .lib.toMakeRequest import SentinelDownloader, get_time_ranges
 from .lib.createJobs import create_windows_task, write_download_script
 from qgis import processing
 from qgis.PyQt.QtWidgets import *
@@ -542,10 +541,15 @@ class Zonescan:
     ################ AYMANE #####################
     def download_dependencies(self):
         print("Installing the modules we neeed: oauthlib and requests_oauthlib..")
-        bat = os.path.join(self.plugin_dir, "install_required_libraries.bat")
-        subprocess.call([bat], shell=True)
-        self.settings.setValue("Zonescan/deps_installed", True)
 
+        try:
+            bat = os.path.join(self.plugin_dir, "install_required_libraries.bat")
+            subprocess.call([bat], shell=True)
+            self.settings.setValue("Zonescan/deps_installed", True)
+        except Exception as e:
+            print("Error installing dependencies: ", e)
+            QMessageBox.warning(self.dlg, "Error", "Error importing oauthlib and requests_oauthlib: " + str(e))
+            exit(0)
         try:
             from oauthlib.oauth2 import BackendApplicationClient
             from requests_oauthlib import OAuth2Session
@@ -616,6 +620,9 @@ class Zonescan:
 
 
     def run_downloads_and_schedule(self):
+
+        from .lib.toMakeRequest import SentinelDownloader, get_time_ranges
+
 
         # self.dlg.progress_image_sat.setEnabled(True)
         # self.dlg.progress_image_sat.setRange(0, 100)

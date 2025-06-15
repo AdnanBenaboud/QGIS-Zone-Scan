@@ -34,3 +34,5 @@ def classFactory(iface):  # pylint: disable=invalid-name
     #
     from .zone_scan import Zonescan
     return Zonescan(iface)
+
+    

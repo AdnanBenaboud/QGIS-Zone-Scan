@@ -246,10 +246,7 @@ class Zonescan:
 
 
             ################ AYMANE #####################
-            if not self.settings.value("Zonescan/deps_installed", False, type=bool):
-                self.download_dependencies()
-
-
+            
             self.load_indexes()
             self.dlg.run_image_sat.clicked.connect(self.run_downloads_and_schedule)
 
@@ -258,8 +255,15 @@ class Zonescan:
             self.dlg.label_value.setText(f"{self.dlg.cloud_coverage.value()}%")
             self.dlg.checkbox_schedule.stateChanged.connect(self.enable_schedule_options)
 
-            # self.dlg.progress_image_sat.setEnabled(False)
-            # self.dlg.progress_image_sat.setRange(0, 0)
+
+        try:
+            from oauthlib.oauth2 import BackendApplicationClient
+            from requests_oauthlib import OAuth2Session
+        except Exception as e:
+            QMessageBox.warning(self.dlg, "Error", "Error importing oauthlib and requests_oauthlib. Trying to install them...\n\n Plugin window will be opened but it may not show up directly... \n\nAfter QGIS is responsive again you should be able to open the plugin safely.")
+            self.download_dependencies()
+
+
         self.dlg.progress_image_sat.setValue(0)
             ############################################
 

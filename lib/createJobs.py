@@ -149,6 +149,20 @@ def write_download_script(job_id, client_id, client_secret, cloud_cov, out_dir, 
         print("Final jobs dir: " + jobs_dir)
 
     script = f"""import sys
+
+try:
+    from oauthlib.oauth2 import BackendApplicationClient
+    from requests_oauthlib import OAuth2Session
+except Exception:
+
+    print("Installing the modules we neeed: oauthlib and requests_oauthlib..")
+    import subprocess
+    import sys
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "oauthlib", "requests_oauthlib"])
+    from oauthlib.oauth2 import BackendApplicationClient
+    from requests_oauthlib import OAuth2Session
+
+    
 from toMakeRequest import SentinelDownloader
 import datetime
 

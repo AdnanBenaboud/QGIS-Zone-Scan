@@ -1,4 +1,18 @@
 import sys
+
+try:
+    from oauthlib.oauth2 import BackendApplicationClient
+    from requests_oauthlib import OAuth2Session
+except Exception:
+
+    print("Installing the modules we neeed: oauthlib and requests_oauthlib..")
+    import subprocess
+    import sys
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "oauthlib", "requests_oauthlib"])
+    from oauthlib.oauth2 import BackendApplicationClient
+    from requests_oauthlib import OAuth2Session
+
+    
 from toMakeRequest import SentinelDownloader
 import datetime
 
@@ -14,7 +28,7 @@ print(start_date)
 print(end_date)
 
 
-options = ['raw']
+options = ['rgb']
 
 downloader = SentinelDownloader("sh-fe6c2430-e6d5-4e1d-b929-856798c5d2ad", "ZeZVlTvJrEon65OnvPnaRGiFJ727V3Lu")
 downloader.base_dir = r"C:\Users\dell\Pictures"

@@ -1,5 +1,74 @@
+# import subprocess
+# import sys
+# import datetime
+# import os
+
+# def parse_local_datetime(utc_string):
+#     dt = datetime.datetime.strptime(utc_string, "%Y-%m-%dT%H:%M:%SZ")
+#     local_dt = dt.astimezone()
+#     date_str = local_dt.strftime("%m/%d/%Y") 
+#     time_str = local_dt.strftime("%H:%M")  
+#     return date_str, time_str
+
+# def get_schedule(unit, value):
+#     unit = unit.lower()
+#     if unit == "minutes":
+#         if not (1 <= value <= 1439):
+#             raise ValueError("For MINUTE, MO must be 1 to 1439")
+#         return "MINUTE", value
+#     elif unit == "hours":
+#         if not (1 <= value <= 23):
+#             raise ValueError("For HOURLY, MO must be 1 to 23")
+#         return "HOURLY", value
+#     elif unit == "days":
+#         if not (1 <= value <= 365):
+#             raise ValueError("For DAILY, MO must be 1 to 365")
+#         return "DAILY", value
+#     elif unit == "weeks":
+#         total_days = 7 * value
+#         if not (1 <= total_days <= 365):
+#             raise ValueError("Weekly equivalent in days must be 1 to 365")
+#         return "DAILY", total_days
+#     elif unit == "months":
+#         total_days = 30 * value
+#         if not (1 <= total_days <= 365):
+#             raise ValueError("Monthly equivalent in days must be 1 to 365")
+#         return "DAILY", total_days
+#     else:
+#         raise ValueError(f"Unsupported schedule unit: {unit}")
+
+    
+
+# def create_windows_task(task_name, time_str,time_end, vbs_path, unit, value):
+#     unit = unit.lower()
+
+
+#     sc, mo = get_schedule(unit, value)
+    
+#     start_date_str, start_time_str = parse_local_datetime(time_str)
+#     end_date_str, end_time_str = parse_local_datetime(time_end)
+
+#     cmd = [
+        
+#         "schtasks",
+#         "/Create",
+#         "/SC", str(sc),
+#         "/MO", str(mo),
+#         "/TN", task_name,
+#         "/TR", f'wscript.exe {vbs_path}',
+#         "/ST", start_time_str,
+#         "/SD", start_date_str,
+#         "/ED", end_date_str,
+#         "/F"
+#     ]
+#     print("Command to run: " + " ".join(cmd))
+#     subprocess.run(cmd, shell=True)
+#     print("Task created successfully.")
+
+
+
+
 import subprocess
-import sys
 import datetime
 import os
 
@@ -16,74 +85,43 @@ def parse_local_datetime(utc_string):
     dt = dt.replace(tzinfo=datetime.timezone.utc)
     return dt.astimezone()
 
-
-
 def get_schedule(unit, value):
-    unit = unit.lower()
-    if unit == "minutes":
+    u = unit.lower()
+    if u == "minutes":
         if not (1 <= value <= 1439):
             raise ValueError("For MINUTE, MO must be 1 to 1439")
         return "MINUTE", value
-    elif unit == "hours":
+    if u == "hours":
         if not (1 <= value <= 23):
             raise ValueError("For HOURLY, MO must be 1 to 23")
         return "HOURLY", value
-    elif unit == "days":
+    if u == "days":
         if not (1 <= value <= 365):
             raise ValueError("For DAILY, MO must be 1 to 365")
         return "DAILY", value
-    elif unit == "weeks":
-        total_days = 7 * value
-        if not (1 <= total_days <= 365):
+    if u == "weeks":
+        days = 7 * value
+        if not (1 <= days <= 365):
             raise ValueError("Weekly equivalent in days must be 1 to 365")
-        return "DAILY", total_days
-    elif unit == "months":
-        total_days = 30 * value
-        if not (1 <= total_days <= 365):
+        return "DAILY", days
+    if u == "months":
+        days = 30 * value
+        if not (1 <= days <= 365):
             raise ValueError("Monthly equivalent in days must be 1 to 365")
-        return "DAILY", total_days
-    else:
-        raise ValueError(f"Unsupported schedule unit: {unit}")
+        return "DAILY", days
+    raise ValueError(f"Unsupported schedule unit: {unit}")
 
-    
-
-def create_windows_task(task_name, time_str,time_end, vbs_path, unit, value):
-    # unit = unit.lower()
-
-
-    # sc, mo = get_schedule(unit, value)
-    
-    # start_date_str, start_time_str = parse_local_datetime(time_str)
-    # end_date_str, end_time_str = parse_local_datetime(time_end)
-
-    # cmd = [
-        
-    #     "schtasks",
-    #     "/Create",
-    #     "/SC", str(sc),
-    #     "/MO", str(mo),
-    #     "/TN", task_name,
-    #     "/TR", f'wscript.exe {vbs_path}',
-    #     "/ST", start_time_str,
-    #     "/SD", start_date_str,
-    #     "/ED", end_date_str,
-    #     "/F"
-    # ]
-    # print("Command to run: " + " ".join(cmd))
-    # subprocess.run(cmd, shell=True)
-    # print("Task created successfully.")
-
+def create_windows_task(task_name, time_str, time_end, vbs_path, unit, value):
     sc, mo = get_schedule(unit, value)
     start_dt = parse_local_datetime(time_str)
     now = datetime.datetime.now(start_dt.tzinfo)
     if start_dt <= now:
         if sc == "MINUTE":
-            delta = datetime.timedelta(minutes=mo*2)
+            start_dt = now + datetime.timedelta(minutes=mo*3)
         elif sc == "HOURLY":
-            delta = datetime.timedelta(hours=mo*2)
+            start_dt = now + datetime.timedelta(hours=mo)
         else:
-            delta = datetime.timedelta(days=mo*2)
-        start_dt = now + delta
+            start_dt = now + datetime.timedelta(days=mo)
     end_dt = parse_local_datetime(time_end)
     start_date = start_dt.strftime("%m/%d/%Y")
     start_time = start_dt.strftime("%H:%M")
@@ -102,16 +140,6 @@ def create_windows_task(task_name, time_str,time_end, vbs_path, unit, value):
     ]
     print("Command to run:", " ".join(cmd))
     subprocess.run(cmd, shell=True)
-
-    cmd = [
-        "PowerShell",
-        "-Command",
-        f"Get-ScheduledTask -TaskName '{task_name}' | Set-ScheduledTask -Settings @{{StartWhenAvailable=$true}}"
-    ]
-    subprocess.run(cmd)
-
-
-
 
 def write_download_script(job_id, client_id, client_secret, cloud_cov, out_dir, options, jobs_dir=None):
 

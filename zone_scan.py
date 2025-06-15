@@ -772,7 +772,7 @@ class Zonescan:
                                     jobs_dir=self.jobs_dir)
                 # C:\Users\dell\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\QGIS-Zone-Scan\zone_scan.py
                 create_windows_task(f"geotask_{job_id}", time_start, time_end, vbs_path, frequency_unit, frequency_value)
-                QMessageBox.information(self.dlg, "Job Scheduled", f"Job scheduled with ID: {job_id}", "Task will start 3 minutes after the initial date choosen.")
+                QMessageBox.information(self.dlg, "Job Scheduled", f"Job scheduled with ID: {job_id} to run every {frequency_value} {frequency_unit} from {time_start} to {time_end}.\n\n You need to wait 3 minutes for the first job to start.")
             else:
                 QMessageBox.warning(self.dlg, "You need to Windows to use schedule downloads!")
 

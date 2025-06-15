@@ -154,12 +154,10 @@ import datetime
 
 
 
-# Get today's date
 today = datetime.date.today()
-# make it ISO format
-start_date = today.isoformat()
-start_date = start_date + "T00:00:00Z"
-end_date = (start_date.split("T")[0]) + "T23:55:28Z"
+
+start_date = (today - datetime.timedelta(weeks=2)).isoformat() + "T00:00:00Z"
+end_date   = today.isoformat() + "T23:59:59Z"
 
 print("Starting to download the new images... ")
 print(start_date)

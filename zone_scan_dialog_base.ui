@@ -486,8 +486,8 @@ QToolBox {
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>779</width>
-        <height>288</height>
+        <width>98</width>
+        <height>28</height>
        </rect>
       </property>
       <attribute name="label">
@@ -1220,14 +1220,14 @@ QComboBox QAbstractItemView {
          <second>29</second>
          <year>2025</year>
          <month>6</month>
-         <day>9</day>
+         <day>1</day>
         </datetime>
        </property>
        <property name="date">
         <date>
          <year>2025</year>
          <month>6</month>
-         <day>9</day>
+         <day>1</day>
         </date>
        </property>
        <property name="time">
@@ -1349,8 +1349,8 @@ QComboBox QAbstractItemView {
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>779</width>
-        <height>288</height>
+        <width>98</width>
+        <height>28</height>
        </rect>
       </property>
       <attribute name="label">

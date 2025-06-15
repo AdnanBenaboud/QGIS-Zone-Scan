@@ -479,7 +479,7 @@ QToolBox {
 }</string>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>3</number>
      </property>
      <widget class="QWidget" name="page">
       <property name="geometry">
@@ -487,7 +487,7 @@ QToolBox {
         <x>0</x>
         <y>0</y>
         <width>779</width>
-        <height>303</height>
+        <height>288</height>
        </rect>
       </property>
       <attribute name="label">
@@ -1119,8 +1119,8 @@ QPushButton:pressed {
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>98</width>
-        <height>28</height>
+        <width>779</width>
+        <height>288</height>
        </rect>
       </property>
       <attribute name="label">
@@ -1220,14 +1220,14 @@ QComboBox QAbstractItemView {
          <second>29</second>
          <year>2025</year>
          <month>6</month>
-         <day>1</day>
+         <day>9</day>
         </datetime>
        </property>
        <property name="date">
         <date>
          <year>2025</year>
          <month>6</month>
-         <day>1</day>
+         <day>9</day>
         </date>
        </property>
        <property name="time">
@@ -1349,8 +1349,8 @@ QComboBox QAbstractItemView {
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>98</width>
-        <height>28</height>
+        <width>779</width>
+        <height>288</height>
        </rect>
       </property>
       <attribute name="label">

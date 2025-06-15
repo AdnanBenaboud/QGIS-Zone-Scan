@@ -3,12 +3,20 @@ import sys
 import datetime
 import os
 
+# def parse_local_datetime(utc_string):
+#     dt = datetime.datetime.strptime(utc_string, "%Y-%m-%dT%H:%M:%SZ")
+#     local_dt = dt.astimezone()
+#     date_str = local_dt.strftime("%m/%d/%Y") 
+#     time_str = local_dt.strftime("%H:%M")  
+#     return date_str, time_str
+
+
 def parse_local_datetime(utc_string):
     dt = datetime.datetime.strptime(utc_string, "%Y-%m-%dT%H:%M:%SZ")
-    local_dt = dt.astimezone()
-    date_str = local_dt.strftime("%m/%d/%Y") 
-    time_str = local_dt.strftime("%H:%M")  
-    return date_str, time_str
+    dt = dt.replace(tzinfo=datetime.timezone.utc)
+    return dt.astimezone()
+
+
 
 def get_schedule(unit, value):
     unit = unit.lower()
@@ -40,36 +48,78 @@ def get_schedule(unit, value):
     
 
 def create_windows_task(task_name, time_str,time_end, vbs_path, unit, value):
-    unit = unit.lower()
+    # unit = unit.lower()
 
+
+    # sc, mo = get_schedule(unit, value)
+    
+    # start_date_str, start_time_str = parse_local_datetime(time_str)
+    # end_date_str, end_time_str = parse_local_datetime(time_end)
+
+    # cmd = [
+        
+    #     "schtasks",
+    #     "/Create",
+    #     "/SC", str(sc),
+    #     "/MO", str(mo),
+    #     "/TN", task_name,
+    #     "/TR", f'wscript.exe {vbs_path}',
+    #     "/ST", start_time_str,
+    #     "/SD", start_date_str,
+    #     "/ED", end_date_str,
+    #     "/F"
+    # ]
+    # print("Command to run: " + " ".join(cmd))
+    # subprocess.run(cmd, shell=True)
+    # print("Task created successfully.")
 
     sc, mo = get_schedule(unit, value)
-    
-    start_date_str, start_time_str = parse_local_datetime(time_str)
-    end_date_str, end_time_str = parse_local_datetime(time_end)
-
+    start_dt = parse_local_datetime(time_str)
+    now = datetime.datetime.now(start_dt.tzinfo)
+    if start_dt <= now:
+        if sc == "MINUTE":
+            delta = datetime.timedelta(minutes=mo*2)
+        elif sc == "HOURLY":
+            delta = datetime.timedelta(hours=mo*2)
+        else:
+            delta = datetime.timedelta(days=mo*2)
+        start_dt = now + delta
+    end_dt = parse_local_datetime(time_end)
+    start_date = start_dt.strftime("%m/%d/%Y")
+    start_time = start_dt.strftime("%H:%M")
+    end_date = end_dt.strftime("%m/%d/%Y")
     cmd = [
-        
         "schtasks",
         "/Create",
-        "/SC", str(sc),
+        "/SC", sc,
         "/MO", str(mo),
         "/TN", task_name,
-        "/TR", f'wscript.exe {vbs_path}',
-        "/ST", start_time_str,
-        "/SD", start_date_str,
-        "/ED", end_date_str,
+        "/TR", f'wscript.exe "{vbs_path}"',
+        "/ST", start_time,
+        "/SD", start_date,
+        "/ED", end_date,
         "/F"
     ]
-    print("Command to run: " + " ".join(cmd))
+    print("Command to run:", " ".join(cmd))
     subprocess.run(cmd, shell=True)
-    print("Task created successfully.")
 
+    cmd = [
+        "PowerShell",
+        "-Command",
+        f"Get-ScheduledTask -TaskName '{task_name}' | Set-ScheduledTask -Settings @{{StartWhenAvailable=$true}}"
+    ]
+    subprocess.run(cmd)
 
 
 
 
 def write_download_script(job_id, client_id, client_secret, cloud_cov, out_dir, options, jobs_dir=None):
+
+    if jobs_dir is not None:
+        # C:\Users/dell/AppData/Roaming/QGIS/QGIS3\profiles\default/python/plugins\QGIS-Zone-Scan\jobs\download_job_2025_06_09T22_56_29Z_2026_06_29T22_56_29Z_minutes_1_20.vbs
+        jobs_dir = jobs_dir.replace("\\", "/")
+        print("Final jobs dir: " + jobs_dir)
+
     script = f"""import sys
 from toMakeRequest import SentinelDownloader
 import datetime
@@ -144,3 +194,4 @@ WshShell.Run "{filename_bat}", 1, True
         f.write(script_vbs)
 
     return filename_vbs
+

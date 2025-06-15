@@ -59,6 +59,8 @@ from qgis.analysis import (
     QgsRasterCalculatorEntry,
 )
 
+import platform
+
 from qgis.core import QgsProject, QgsVectorLayer, QgsMapLayer, QgsRasterLayer
 
  ############################################
@@ -726,49 +728,53 @@ class Zonescan:
             print("Done with index calculations...")            
 
         if self.dlg.checkbox_schedule.isChecked():
+            # check current system
+            if platform.system() == "Windows":
+                print("Schedule options enabled")
+                print("Windows system detected")
+                self.dlg.progress_image_sat.setValue(60)
 
+                frequency_unit = self.dlg.frequency_combo.currentText().lower()
 
-            print("Schedule options enabled")
-            self.dlg.progress_image_sat.setValue(60)
+                try:
+                    frequency_value = int(self.dlg.value.text())
+                except:
+                    print("Error in the value, defaulting to 1..")
+                    frequency_value = 1
 
-            frequency_unit = self.dlg.frequency_combo.currentText().lower()
+                options = []
+                if self.dlg.rgb_checkbox.isChecked():
+                    options.append("rgb")
+                if self.dlg.raw_checkbox.isChecked():
+                    options.append("raw")
+                if self.dlg.ndvi_checkbox.isChecked():
+                    options.append("ndvi")
 
-            try:
-                frequency_value = int(self.dlg.value.text())
-            except:
-                print("Error in the value, defaulting to 1..")
-                frequency_value = 1
+                print("Time start: ", time_start)
+                print("Time end: ", time_end)
+                print("Frequency unit: ", frequency_unit)
+                print("Frequency value: ", frequency_value)
 
-            options = []
-            if self.dlg.rgb_checkbox.isChecked():
-                options.append("rgb")
-            if self.dlg.raw_checkbox.isChecked():
-                options.append("raw")
-            if self.dlg.ndvi_checkbox.isChecked():
-                options.append("ndvi")
+                # time_ranges = get_time_ranges(start_dt, end_dt, frequency_unit, frequency_value)
 
-            print("Time start: ", time_start)
-            print("Time end: ", time_end)
-            print("Frequency unit: ", frequency_unit)
-            print("Frequency value: ", frequency_value)
+                # for from_time, to_time in time_ranges:
+                #     print(f"Requesting from {from_time} to {to_time}")
 
-            # time_ranges = get_time_ranges(start_dt, end_dt, frequency_unit, frequency_value)
+                job_id = time_start + "_" + time_end+ "_" + frequency_unit + "_" + str(frequency_value)+ "_" + str(cloud_cov)
+                job_id = job_id.replace(":", "_")
+                job_id = job_id.replace(" ", "_")
+                job_id = job_id.replace("-", "_")
 
-            # for from_time, to_time in time_ranges:
-            #     print(f"Requesting from {from_time} to {to_time}")
+                self.dlg.progress_image_sat.setValue(80)
 
-            job_id = time_start + "_" + time_end+ "_" + frequency_unit + "_" + str(frequency_value)+ "_" + str(cloud_cov)
-            job_id = job_id.replace(":", "_")
-            job_id = job_id.replace(" ", "_")
-            job_id = job_id.replace("-", "_")
-
-            self.dlg.progress_image_sat.setValue(80)
-
-            print("Job ID: ", job_id)
-            vbs_path = write_download_script(job_id, client_id, client_secret, cloud_cov, folder_path, options, 
-                                  jobs_dir=self.jobs_dir)
-            # C:\Users\dell\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\QGIS-Zone-Scan\zone_scan.py
-            create_windows_task(f"geotask_{job_id}", time_start, time_end, vbs_path, frequency_unit, frequency_value)
+                print("Job ID: ", job_id)
+                vbs_path = write_download_script(job_id, client_id, client_secret, cloud_cov, folder_path, options, 
+                                    jobs_dir=self.jobs_dir)
+                # C:\Users\dell\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\QGIS-Zone-Scan\zone_scan.py
+                create_windows_task(f"geotask_{job_id}", time_start, time_end, vbs_path, frequency_unit, frequency_value)
+                QMessageBox.information(self.dlg, "Job Scheduled", f"Job scheduled with ID: {job_id}")
+            else:
+                QMessageBox.warning(self.dlg, "You need to Windows to use schedule downloads!")
 
         else:
             print(client_id, client_secret, cloud_cov)

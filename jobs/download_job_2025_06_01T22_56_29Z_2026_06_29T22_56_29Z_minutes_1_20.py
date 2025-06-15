@@ -16,7 +16,7 @@ print(start_date)
 print(end_date)
 
 
-options = ['raw']
+options = ['rgb', 'raw']
 
 downloader = SentinelDownloader("sh-fe6c2430-e6d5-4e1d-b929-856798c5d2ad", "ZeZVlTvJrEon65OnvPnaRGiFJ727V3Lu")
 downloader.base_dir = r"C:\Users\dell\Pictures"

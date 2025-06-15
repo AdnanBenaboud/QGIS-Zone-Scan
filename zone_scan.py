@@ -223,21 +223,7 @@ class Zonescan:
                 action)
             self.iface.removeToolBarIcon(action)
     
-    def download_dependencies(self):
-        print("Installing the modules we neeed: oauthlib and requests_oauthlib..")
-        bat = os.path.join(self.plugin_dir, "install_required_libraries.bat")
-        subprocess.call([bat], shell=True)
-        self.settings.setValue("Zonescan/deps_installed", True)
-
-        try:
-            from oauthlib.oauth2 import BackendApplicationClient
-            from requests_oauthlib import OAuth2Session
-        except Exception as e:
-            print("Error importing oauthlib and requests_oauthlib: ", e)
-            QMessageBox.warning(self.dlg, "Error", "Error importing oauthlib and requests_oauthlib: " + str(e))
-            exit(0)
-
-        print("Done..")
+    
 
     def run(self):
         """Run method that performs all the real work"""
@@ -259,8 +245,6 @@ class Zonescan:
 
 
             ################ AYMANE #####################
-
-            # self.settings.setValue("Zonescan/deps_installed", False)
             if not self.settings.value("Zonescan/deps_installed", False, type=bool):
                 self.download_dependencies()
 
@@ -554,6 +538,22 @@ class Zonescan:
 
 
     ################ AYMANE #####################
+    def download_dependencies(self):
+        print("Installing the modules we neeed: oauthlib and requests_oauthlib..")
+        bat = os.path.join(self.plugin_dir, "install_required_libraries.bat")
+        subprocess.call([bat], shell=True)
+        self.settings.setValue("Zonescan/deps_installed", True)
+
+        try:
+            from oauthlib.oauth2 import BackendApplicationClient
+            from requests_oauthlib import OAuth2Session
+        except Exception as e:
+            print("Error importing oauthlib and requests_oauthlib: ", e)
+            QMessageBox.warning(self.dlg, "Error", "Error importing oauthlib and requests_oauthlib: " + str(e))
+            exit(0)
+
+        print("Done..")
+
     def load_indexes(self):
         self.index_checkboxes = {}
 

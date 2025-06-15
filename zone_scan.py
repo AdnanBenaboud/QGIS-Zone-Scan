@@ -249,6 +249,13 @@ class Zonescan:
             ################ AYMANE #####################
             if not self.settings.value("Zonescan/deps_installed", False, type=bool):
                 self.download_dependencies()
+            
+            try:
+                from oauthlib.oauth2 import BackendApplicationClient
+                from requests_oauthlib import OAuth2Session
+            except Exception as e:
+                QMessageBox.warning(self.dlg, "Error", "Error importing oauthlib and requests_oauthlib, please install them with pip install oauthlib requests_oauthlib: " + str(e))
+                exit(0)
 
 
             self.load_indexes()
@@ -262,6 +269,9 @@ class Zonescan:
             # self.dlg.progress_image_sat.setEnabled(False)
             # self.dlg.progress_image_sat.setRange(0, 0)
         self.dlg.progress_image_sat.setValue(0)
+
+       
+        
             ############################################
 
         print("Current plugin dir: ", self.plugin_dir)
@@ -555,6 +565,28 @@ class Zonescan:
             exit(0)
 
         print("Done..")
+
+
+
+        import platform, subprocess, os
+        if platform.system() != "Windows":
+            QMessageBox.warning(self.dlg, "Error", "Please install oauthlib and requests_oauthlib manually")
+            return
+
+        try:
+            bat = os.path.join(self.plugin_dir, "install_required_libraries.bat")
+            subprocess.call([bat], shell=True)
+            self.settings.setValue("Zonescan/deps_installed", True)
+        except Exception as e:
+            QMessageBox.warning(self.dlg, "Error", "Error installing oauthlib and requests_oauthlib automatically, download them manually: " + str(e))
+            exit(0)
+
+        try:
+            from oauthlib.oauth2 import BackendApplicationClient
+            from requests_oauthlib import OAuth2Session
+        except Exception as e:
+            QMessageBox.warning(self.dlg, "Error", "Error importing oauthlib and requests_oauthlib: " + str(e))
+            exit(0)
 
     def load_indexes(self):
         self.index_checkboxes = {}
